@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>เกมหาคำศัพท์โปรแกรมมิ่ง</title>
+  <style>
+    body {
+      font-family: 'Kanit', sans-serif;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      background: #f0f8ff;
+    }
+    h1 {
+      font-size: 7vw;
+      margin-bottom: 10px;
+    }
+    #status, #timer, #message {
+      margin: 10px 0;
+      font-size: 5vw;
+    }
+    #word-list {
+      margin: 20px 0;
+      font-size: 4vw;
+    }
+    table {
+      margin: 0 auto;
+      border-collapse: collapse;
+      width: 90vw;
+      max-width: 500px;
+    }
+    td {
+      width: 9vw;
+      height: 9vw;
+      max-width: 50px;
+      max-height: 50px;
+      text-align: center;
+      vertical-align: middle;
+      border: 1px solid #333;
+      font-size: 5vw;
+      background: white;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.3s;
+    }
+    td.found {
+      background: lightgreen;
+    }
+    td.selected {
+      background: lightblue;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 5vw;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-block;
+    }
+    #restart {
+      background: #28a745;
+    }
+
+    @media (min-width: 600px) {
+      h1, #status, #timer, #message { font-size: 36px; }
+      #word-list { font-size: 24px; }
+      td { font-size: 24px; width: 40px; height: 40px; }
+      button { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>เกมหาคำศัพท์โปรแกรมมิ่ง</h1>
+  <div id="timer">เวลา: 0 วินาที</div>
+  <div id="status">คะแนน: 0</div>
+  <div id="word-list"></div>
+  <table id="grid"></table>
+  <div id="message"></div>
+
+  <button id="start" onclick="startGame()">เริ่มเกม</button>
+  <button id="restart" onclick="restartGame()">เริ่มใหม่</button>
+
+  <audio id="correctSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_9b3a54eaa8.mp3?filename=correct-2-46134.mp3"></audio>
+
+  <script>
+    const allWords = [
+      "PYTHON", "JAVA", "HTML", "CSS", "JAVASCRIPT", "SQL", "PHP", "RUBY",
+      "CPLUSPLUS", "REACT", "ANGULAR", "NODE", "MONGO", "DOCKER", "AWS",
+      "PYTORCH", "FLASK", "VUE", "DJANGO", "KOTLIN", "SWIFT", "PERL", "SASS",
+      "GOLANG", "NEXTJS"
+    ];
+
+    let selectedWords = [];
+    let grid = [];
+    let foundWords = 0;
+    let timer = 0;
+    let timerInterval;
+    const gridSize = 12;
+    let selectedCells = [];
+
+    function startTimer() {
+      timer = 0;
+      timerInterval = setInterval(() => {
+        timer++;
+        document.getElementById('timer').textContent = `เวลา: ${timer} วินาที`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function selectRandomWords(count) {
+      return shuffle([...allWords]).slice(0, count);
+    }
+
+    function placeWord(word) {
+      let placed = false;
+      while (!placed) {
+        const horizontal = Math.random() > 0.5;
+        const row = Math.floor(Math.random() * (horizontal ? gridSize : gridSize - word.length));
+        const col = Math.floor(Math.random() * (horizontal ? gridSize - word.length : gridSize));
+        let fits = true;
+
+        for (let i = 0; i < word.length; i++) {
+          const r = row + (horizontal ? 0 : i);
+          const c = col + (horizontal ? i : 0);
+          if (grid[r][c] !== '' && grid[r][c] !== word[i]) {
+            fits = false;
+            break;
+          }
+        }
+
+        if (fits) {
+          for (let i = 0; i < word.length; i++) {
+            const r = row + (horizontal ? 0 : i);
+            const c = col + (horizontal ? i : 0);
+            grid[r][c] = word[i];
+          }
+          placed = true;
+        }
+      }
+    }
+
+    function generateGrid() {
+      grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(''));
+      selectedWords = selectRandomWords(5);
+      selectedWords.forEach(placeWord);
+
+      for (let i = 0; i < gridSize; i++) {
+        for (let j = 0; j < gridSize; j++) {
+          if (grid[i][j] === '') {
+            grid[i][j] = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+          }
+        }
+      }
+
+      document.getElementById('word-list').textContent = `คำที่ต้องหา: ${selectedWords.join(', ')}`;
+    }
+
+    function buildTable() {
+      const gridTable = document.getElementById("grid");
+      gridTable.innerHTML = '';
+      grid.forEach((row, i) => {
+        const tr = document.createElement("tr");
+        row.forEach((cell, j) => {
+          const td = document.createElement("td");
+          td.textContent = cell;
+          td.dataset.row = i;
+          td.dataset.col = j;
+          td.addEventListener('click', () => selectLetter(td));
+          tr.appendChild(td);
+        });
+        gridTable.appendChild(tr);
+      });
+    }
+
+    function selectLetter(cell) {
+      if (cell.classList.contains('found')) return;
+
+      cell.classList.toggle('selected');
+      const idx = selectedCells.indexOf(cell);
+      if (idx > -1) {
+        selectedCells.splice(idx, 1);
+      } else {
+        selectedCells.push(cell);
+      }
+      checkWord();
+    }
+
+    function checkWord() {
+      const word = selectedCells.map(cell => cell.textContent).join('');
+      const reverseWord = selectedCells.map(cell => cell.textContent).reverse().join('');
+
+      if (selectedWords.includes(word) || selectedWords.includes(reverseWord)) {
+        selectedCells.forEach(cell => {
+          cell.classList.remove('selected');
+          cell.classList.add('found');
+        });
+        foundWords++;
+        document.getElementById('status').textContent = `คะแนน: ${foundWords}`;
+        document.getElementById('correctSound').play();
+
+        if (foundWords === selectedWords.length) {
+          stopTimer();
+          document.getElementById('message').textContent = `ชนะแล้ว! ใช้เวลา ${timer} วินาที 🎉`;
+        }
+        selectedCells = [];
+      }
+    }
+
+    function restartGame() {
+      stopTimer();
+      foundWords = 0;
+      document.getElementById('status').textContent = `คะแนน: ${foundWords}`;
+      document.getElementById('message').textContent = '';
+      selectedCells = [];
+      generateGrid();
+      buildTable();
+      startTimer();
+    }
+
+    function startGame() {
+      document.getElementById('start').style.display = 'none';
+      document.getElementById('restart').style.display = 'inline-block';
+      restartGame();
+    }
+
+    // ซ่อนปุ่มรีสตาร์ทไว้ก่อน
+    document.getElementById('restart').style.display = 'none';
+  </script>
+</body>
+</html>
